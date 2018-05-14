@@ -6,23 +6,6 @@ RSpec::Core::RakeTask.new(:spec)
 
 task :test => :spec
 
-namespace :cache do
-  require 'mlb'
-  desc 'Update the teams file cache'
-  task :update do
-    json = MLB::Team.results_from_freebase
-    file = File.new('cache/teams.json', 'w+')
-    tempfile = Tempfile.new('teams.json')
-    tempfile.write(JSON.dump(json))
-    if system("python -mjson.tool #{tempfile.path} #{file.path}")
-      puts "File sucessfully written to #{file.path}"
-      tempfile.delete
-    else
-      abort "Error parsing #{tempfile.path}"
-    end
-  end
-end
-
 begin
   require 'rubocop/rake_task'
   RuboCop::RakeTask.new

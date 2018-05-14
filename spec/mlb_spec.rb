@@ -1,9 +1,6 @@
 require 'helper'
 
 describe MLB::Team, '.all' do
-  before do
-    stub_request(:get, 'https://www.googleapis.com/freebase/v1/mqlread').with(:query => {:query => described_class.mql_query}).to_return(:body => fixture('teams.json'))
-  end
   after do
     described_class.reset
   end
@@ -90,24 +87,6 @@ describe MLB::Team, '.all' do
       team.players.each do |player|
         expect(player.to).to eq('Present'), "got: #{player.to} for #{player.name}"
       end
-    end
-  end
-
-  context 'with timeout' do
-    before do
-      stub_request(:get, 'https://www.googleapis.com/freebase/v1/mqlread').with(:query => {:query => described_class.mql_query}).to_timeout
-    end
-    it 'does not raise an exception' do
-      expect { subject }.not_to raise_exception
-    end
-  end
-
-  context 'without connection' do
-    before do
-      stub_request(:get, 'https://www.googleapis.com/freebase/v1/mqlread').with(:query => {:query => described_class.mql_query}).to_raise(SocketError)
-    end
-    it 'does not raise an exception' do
-      expect { subject }.not_to raise_exception
     end
   end
 end

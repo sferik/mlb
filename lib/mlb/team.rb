@@ -21,13 +21,9 @@ module MLB
     #   MLB::Team.all.first.players.first.number    # => 28
     #   MLB::Team.all.first.players.first.position  # => "Right fielder"
     def self.all
-      # Attempt to fetch the result from the Freebase API unless there is a
-      # connection error, in which case read from a fixture file
-      @all ||= begin
-        results_to_team(results_from_freebase)
-      rescue Faraday::Error::ConnectionFailed, Faraday::Error::TimeoutError
-        results_to_team(results_from_cache)
-      end
+      # Attempt to read the from the cached fixture file.
+      # If it doesn't work, load it from the repository.
+      @all ||= results_to_team(results_from_cache || results_from_source)
     end
 
     def self.reset
@@ -42,16 +38,51 @@ module MLB
       end
     end
 
-    def self.results_from_freebase
-      Request.get('/freebase/v1/mqlread', :query => mql_query)
+    def self.cache_dirs
+      [
+       "#{Dir.pwd}/tmp/cache",
+       "#{Dir.pwd}/cache",
+       File.expand_path('../../../cache', __FILE__),
+      ]
     end
 
     def self.results_from_cache
-      JSON.load(file_from_cache('teams.json').read)
+      data = nil
+      cache_dirs.each do |dir|
+        begin
+          data = JSON.load(file_from_cache(dir, 'teams.json').read)
+        rescue
+        end
+        break if data
+      end
+      data
     end
 
-    def self.file_from_cache(file_name)
-      File.new(File.expand_path('../../../cache', __FILE__) + '/' + file_name)
+    def self.file_from_cache(cache_dir, file_name)
+      File.new(cache_dir + '/' + file_name)
+    end
+
+    def self.results_from_source
+      # Write the results to cache to avoid abuse of the source service.
+      results = load_results_from_source
+      cache_dirs.each do |dir|
+        file = "#{dir}/teams.json"
+        next unless File.writable?(file) || (!File.exist?(file) && File.writable?(dir))
+        begin
+          File.write(file, results)
+          break
+        rescue
+        end
+      end
+      results
+    end
+
+    def self.load_results_from_source
+      connection = Faraday.new('https://raw.githubusercontent.com') do |conn|
+        conn.use FaradayMiddleware::ParseJson
+        conn.adapter Faraday.default_adapter
+      end
+      connection.get('/sferik/mlb/e5b9384fc388f34ec5baca291343864135dcb0fe/cache/teams.json').body
     end
 
     def self.results_to_team(results) # rubocop:disable AbcSize, CyclomaticComplexity, MethodLength, PerceivedComplexity
@@ -79,57 +110,6 @@ module MLB
             :logo_url => (logo_suffix ? logo_prefix + logo_suffix['id'] : nil),
             :players  => (players ? Player.all_from_roster(players) : []))
       end
-    end
-
-    # Returns the MQL query for teams, as a Ruby hash
-    def self.mql_query # rubocop:disable MethodLength
-      query = <<-eos
-        [{
-          "name":          null,
-          "league": {
-            "name": null
-          },
-          "division": {
-            "name": null
-          },
-          "current_manager": {
-            "optional": true,
-            "name": null
-          },
-          "team_stats": [{
-            "wins":   null,
-            "losses": null,
-            "season": null,
-            "limit":  1,
-            "sort":   "-season"
-          }],
-          "/sports/sports_team/roster": [{
-            "player":   null,
-            "number":   null,
-            "from": null,
-            "to": null,
-            "position": [],
-            "sort":     "player"
-          }],
-          "/sports/sports_team/founded": [{
-            "value": null
-          }],
-          "/sports/sports_team/team_mascot": [{}],
-          "/sports/sports_team/arena_stadium": [{
-            "name": null
-          }],
-          "/common/topic/image": [{
-            "optional": true,
-            "id":        null,
-            "timestamp": null,
-            "sort":      "-timestamp",
-            "limit":     1
-          }],
-          "sort":          "name",
-          "type":          "/baseball/baseball_team"
-        }]
-        eos
-      query.delete!("\n").delete!(' ')
     end
   end
 end

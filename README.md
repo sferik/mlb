@@ -69,7 +69,6 @@ of a major release, support for that Ruby version may be dropped.
 MLB was built with the following tools:
 
 * [Bundler][]
-* [Freebase][]
 * [Faraday][]
 * [Markdown][]
 * [MultiJSON][]
@@ -81,7 +80,6 @@ MLB was built with the following tools:
 * [YARD][]
 
 [bundler]: http://gembundler.com/
-[freebase]: http://www.freebase.com/
 [faraday]: https://github.com/technoweenie/faraday
 [markdown]: http://daringfireball.net/projects/markdown/
 [multijson]: https://github.com/intridea/multi_json
