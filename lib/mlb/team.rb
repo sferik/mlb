@@ -25,7 +25,7 @@ module MLB
       # connection error, in which case read from a fixture file
       @all ||= begin
         results_to_team(results_from_freebase)
-      rescue Faraday::Error::ConnectionFailed, Faraday::Error::TimeoutError
+      rescue Faraday::ConnectionFailed, Faraday::Error::TimeoutError
         results_to_team(results_from_cache)
       end
     end
